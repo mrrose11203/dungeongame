@@ -1,0 +1,177 @@
+import pygame
+import random
+import os
+
+# Initialize pygame
+pygame.init()
+
+# Screen dimensions
+SCREEN_WIDTH = 800
+SCREEN_HEIGHT = 600
+
+# Colors
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+RED = (255, 0, 0)
+GREEN = (0, 255, 0)
+BLUE = (0, 0, 255)
+
+# Create the screen
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+pygame.display.set_caption("Dungeon Game")
+
+# Clock to control frame rate
+clock = pygame.time.Clock()
+
+# Load images
+def load_image(name):
+    image = pygame.image.load(os.path.join("assets", name))
+    return image
+
+knight_img = load_image("knight.png")
+mage_img = load_image("mage.png")
+summoner_img = load_image("summoner.png")
+enemy_img = load_image("enemy.png")
+chest_img = load_image("chest.png")
+
+# Scaling images (if needed)
+knight_img = pygame.transform.scale(knight_img, (50, 50))
+mage_img = pygame.transform.scale(mage_img, (50, 50))
+summoner_img = pygame.transform.scale(summoner_img, (50, 50))
+enemy_img = pygame.transform.scale(enemy_img, (50, 50))
+chest_img = pygame.transform.scale(chest_img, (40, 40))
+
+# Character class
+class Character:
+    def __init__(self, name, hp, attack, defense, image, x, y):
+        self.name = name
+        self.hp = hp
+        self.attack = attack
+        self.defense = defense
+        self.image = image
+        self.rect = self.image.get_rect()
+        self.rect.topleft = (x, y)
+
+    def draw(self, screen):
+        screen.blit(self.image, self.rect.topleft)
+
+    def is_alive(self):
+        return self.hp > 0
+
+    def take_damage(self, damage):
+        actual_damage = damage - self.defense
+        if actual_damage < 0:
+            actual_damage = 0
+        self.hp -= actual_damage
+
+    def attack_enemy(self, enemy):
+        enemy.take_damage(self.attack)
+
+
+# Knight class
+class Knight(Character):
+    def __init__(self, x, y):
+        super().__init__("Knight", hp=100, attack=15, defense=10, image=knight_img, x=x, y=y)
+
+    def shield_block(self):
+        self.defense += 5
+        print(f"{self.name} used Shield Block!")
+
+
+# Mage class
+class Mage(Character):
+    def __init__(self, x, y):
+        super().__init__("Mage", hp=80, attack=20, defense=5, image=mage_img, x=x, y=y)
+
+    def cast_spell(self, enemy):
+        damage = self.attack + 10
+        enemy.take_damage(damage)
+        print(f"{self.name} cast a powerful spell!")
+
+
+# Summoner class
+class Summoner(Character):
+    def __init__(self, x, y):
+        super().__init__("Summoner", hp=90, attack=10, defense=5, image=summoner_img, x=x, y=y)
+
+    def summon_creature(self, enemy):
+        damage = 20
+        enemy.take_damage(damage)
+        print(f"{self.name} summoned a creature to attack!")
+
+
+# Enemy class
+class Enemy(Character):
+    def __init__(self, level, x, y):
+        super().__init__("Enemy", hp=level * 10, attack=level * 5, defense=level * 2, image=enemy_img, x=x, y=y)
+
+
+# Main game loop
+def play_game():
+    running = True
+    dungeon_level = 1
+
+    # Player character selection
+    character_class = input("Choose your class (knight/mage/summoner): ").lower()
+
+    if character_class == 'knight':
+        player = Knight(x=100, y=300)
+    elif character_class == 'mage':
+        player = Mage(x=100, y=300)
+    elif character_class == 'summoner':
+        player = Summoner(x=100, y=300)
+    else:
+        print("Invalid class. Defaulting to Knight.")
+        player = Knight(x=100, y=300)
+
+    # Main game loop
+    while running:
+        screen.fill(BLACK)
+
+        # Draw player character
+        player.draw(screen)
+
+        # Generate and draw enemy
+        enemy = Enemy(dungeon_level, x=500, y=300)
+        enemy.draw(screen)
+
+        # Event handling
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_a:  # Attack
+                    player.attack_enemy(enemy)
+                elif event.key == pygame.K_s:  # Special ability
+                    if isinstance(player, Knight):
+                        player.shield_block()
+                    elif isinstance(player, Mage):
+                        player.cast_spell(enemy)
+                    elif isinstance(player, Summoner):
+                        player.summon_creature(enemy)
+
+        # Enemy attacks back if still alive
+        if enemy.is_alive():
+            player.take_damage(enemy.attack)
+
+        # Check if the player or enemy is defeated
+        if not player.is_alive():
+            print("You have been defeated. Game Over.")
+            running = False
+        elif not enemy.is_alive():
+            print(f"Level {dungeon_level} cleared!")
+            dungeon_level += 1
+
+            # Find a chest randomly
+            if random.choice([True, False]):
+                bonus = random.randint(1, 10)
+                player.attack += bonus
+                print(f"You found a chest! Your attack increased by {bonus}.")
+
+        pygame.display.flip()
+        clock.tick(60)  # 60 frames per second
+
+    pygame.quit()
+
+# Run the game
+play_game()
